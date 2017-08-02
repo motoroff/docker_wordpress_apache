@@ -1,0 +1,19 @@
+FROM php:7.0.6-fpm-alpine
+MAINTAINER sergey.motorny@vanderbilt.edu
+RUN apk add --no-cache nginx mysql-client supervisor curl bash redis imagemagick-dev libpng-dev curl-dev tzdata rsync
+ENV CFLAGS -I/usr/src/php
+RUN apk add --no-cache libtool build-base autoconf libxml2 libxml2-dev \
+    && docker-php-ext-install -j$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) iconv gd mbstring fileinfo curl xmlreader xmlwriter spl ftp mysqli opcache dom \
+    && pecl install imagick \
+    && docker-php-ext-enable imagick
+RUN adduser -D deployer -s /bin/bash -G www-data
+COPY cron-cron.conf /etc/crontabs/deployer
+RUN chmod 600 /etc/crontabs/deployer
+RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+    && chmod +x wp-cli.phar \
+    && mv wp-cli.phar /usr/local/bin/wp
+RUN ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime
+RUN echo "America/Chicago" > /etc/timezone
+COPY docker-entrypoint.sh /usr/bin
+RUN chmod 755 /usr/bin/docker-entrypoint.sh
+ENTRYPOINT [ "/usr/bin/docker-entrypoint.sh" ]
